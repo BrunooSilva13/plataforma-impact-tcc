@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  client:
+    build:
+      context: ./Client
+      dockerfile: Dockerfile
+    container_name: client-api
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    environment:
+      DOTNET_URLS: "http://+:5000;https://+:5001"
+    depends_on:
+      - db_client
+    networks:
+      - client_network
+
+  db_client:
+    image: postgres:15
+    container_name: db_client
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: clientdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - client_data:/var/lib/postgresql/data
+      - ./Client/Database/create-db.sql:/docker-entrypoint-initdb.d/create-db.sql:ro
+    networks:
+      - client_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "8080:80"
+    depends_on:
+      - db_client
+    networks:
+      - client_network
+
+volumes:
+  client_data:
+
+networks:
+  client_network:
+    driver: bridge

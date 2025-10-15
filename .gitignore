@@ -1,0 +1,36 @@
+# Compilação
+bin/
+obj/
+out/
+*.exe
+*.dll
+*.pdb
+*.cache
+*.log
+
+# Configuração do usuário
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+.idea/
+
+# Pacotes NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuspec
+project.lock.json
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.dbmdl
+*.bak
+*.swp
+*.DS_Store
+Thumbs.db

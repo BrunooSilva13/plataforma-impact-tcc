@@ -1,72 +1,86 @@
 using Microsoft.AspNetCore.Mvc;
-using Client.Domain;
-using Client.Storage;
+using Client.Model;
+using Client.Service;
 using System;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace Client.Controllers;
-
+namespace Client.Controllers
+{
     [ApiController]
     [Route("api/[controller]")]
     public class ClientController : ControllerBase
     {
-        private readonly ClientRepository _repository;
+        private readonly ClientService _service;
 
-        public ClientController(ClientRepository repository)
+        public ClientController(ClientService service)
         {
-            _repository = repository;
+            _service = service;
         }
 
-        // GET: api/client
+        // GET: api/client?page=1&pageSize=10
         [HttpGet]
-        public async Task<ActionResult<List<ClientModel>>> GetAll()
+        public async Task<ActionResult<IEnumerable<ClientModel>>> GetAllClients([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var clients = await _repository.GetAllClientsAsync();
+            var clients = await _service.GetAllClientsAsync(page, pageSize);
             return Ok(clients);
         }
 
         // GET: api/client/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ClientModel>> GetById(Guid id)
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<ClientModel>> GetClientById(Guid id)
         {
-            var client = await _repository.GetClientByIdAsync(id);
+            var client = await _service.GetClientByIdAsync(id);
+
             if (client == null)
-                return NotFound();
+                return NotFound(new { message = $"Cliente com ID {id} não encontrado." });
+
             return Ok(client);
         }
 
         // POST: api/client
         [HttpPost]
-        public async Task<ActionResult> Create([FromBody] ClientModel client)
+        public async Task<ActionResult<ClientModel>> AddClient([FromBody] ClientModel client)
         {
-            await _repository.AddClientAsync(client);
-            return CreatedAtAction(nameof(GetById), new { id = client.Id }, client);
+            // Validação do modelo
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var id = await _service.AddClientAsync(client);
+            client.Id = id;
+
+            return CreatedAtAction(nameof(GetClientById), new { id = client.Id }, client);
         }
 
         // PUT: api/client/{id}
-        [HttpPut("{id}")]
-        public async Task<ActionResult> Update(Guid id, [FromBody] ClientModel client)
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> UpdateClient(Guid id, [FromBody] ClientModel client)
         {
-            var existingClient = await _repository.GetClientByIdAsync(id);
-            if (existingClient == null)
-                return NotFound();
+            // Validação do modelo
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            client.Id = id; // Garantir que o ID não seja alterado
-            await _repository.UpdateClientAsync(client);
+            if (id != client.Id)
+                return BadRequest(new { message = "O ID da URL não corresponde ao ID do cliente enviado." });
+
+            var updated = await _service.UpdateClientAsync(client);
+
+            if (!updated)
+                return NotFound(new { message = $"Cliente com ID {id} não encontrado ou inativo." });
+
             return NoContent();
         }
 
         // DELETE: api/client/{id}
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(Guid id)
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> DeleteClient(Guid id)
         {
-            var existingClient = await _repository.GetClientByIdAsync(id);
-            if (existingClient == null)
-                return NotFound();
+            var deleted = await _service.DeleteClientAsync(id);
 
-            await _repository.DeleteClientAsync(id);
+            if (!deleted)
+                return NotFound(new { message = $"Cliente com ID {id} não encontrado." });
+
             return NoContent();
         }
     }
-
+}

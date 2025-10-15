@@ -1,16 +1,17 @@
-# 🔹 Imagem base do SDK .NET para build
+# 🔹 Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copiar arquivos do projeto
-COPY ./*.csproj ./
+# Copiar tudo do projeto
 COPY . .
 
-# Restaurar dependências e publicar
+# Restaurar dependências
 RUN dotnet restore
+
+# Publicar aplicação
 RUN dotnet publish -c Release -o /app
 
-# 🔹 Imagem runtime
+# 🔹 Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app ./

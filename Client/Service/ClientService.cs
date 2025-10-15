@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Client.Domain;
-using Client.Storage;
+using Client.Model;
+using Client.Repository;
 
 namespace Client.Service
 {
@@ -15,9 +15,9 @@ namespace Client.Service
             _repository = repository;
         }
 
-        public async Task<List<ClientModel>> GetAllClientsAsync()
+        public async Task<List<ClientModel>> GetAllClientsAsync(int page = 1, int pageSize = 10)
         {
-            return await _repository.GetAllClientsAsync();
+            return await _repository.GetAllClientsAsync(page, pageSize);
         }
 
         public async Task<ClientModel?> GetClientByIdAsync(Guid id)
@@ -25,19 +25,19 @@ namespace Client.Service
             return await _repository.GetClientByIdAsync(id);
         }
 
-        public async Task AddClientAsync(ClientModel client)
+        public async Task<Guid> AddClientAsync(ClientModel client)
         {
-            await _repository.AddClientAsync(client);
+            return await _repository.AddClientAsync(client);
         }
 
-        public async Task UpdateClientAsync(ClientModel client)
+        public async Task<bool> UpdateClientAsync(ClientModel client)
         {
-            await _repository.UpdateClientAsync(client);
+            return await _repository.UpdateClientAsync(client);
         }
 
-        public async Task DeleteClientAsync(Guid id)
+        public async Task<bool> DeleteClientAsync(Guid id)
         {
-            await _repository.DeleteClientAsync(id);
+            return await _repository.DeleteClientAsync(id);
         }
     }
 }

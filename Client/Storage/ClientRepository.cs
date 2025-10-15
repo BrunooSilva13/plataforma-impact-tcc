@@ -1,139 +1,147 @@
+using Client.Model;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Npgsql;
-using Client.Domain;
 
-namespace Client.Storage
+namespace Client.Repository
 {
     public class ClientRepository
     {
         private readonly string _connectionString;
+        private readonly ILogger<ClientRepository> _logger;
 
-        public ClientRepository(string connectionString)
+        public ClientRepository(IConfiguration configuration, ILogger<ClientRepository> logger)
         {
-            _connectionString = connectionString;
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _logger = logger;
         }
 
-        public async Task AddClientAsync(ClientModel client)
-        {
-            var query = @"
-                INSERT INTO clients (id, name, surname, email, birthdate, created_at, updated_at, isactive)
-                VALUES (@Id, @Name, @Surname, @Email, @Birthdate, @CreatedAt, @UpdatedAt, @IsActive);
-            ";
-
-            await using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
-
-            await using var cmd = new NpgsqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("Id", client.Id);
-            cmd.Parameters.AddWithValue("Name", client.Name);
-            cmd.Parameters.AddWithValue("Surname", client.Surname);
-            cmd.Parameters.AddWithValue("Email", client.Email);
-            cmd.Parameters.AddWithValue("Birthdate", client.Birthdate);
-            cmd.Parameters.AddWithValue("CreatedAt", client.CreatedAt);
-            cmd.Parameters.AddWithValue("UpdatedAt", client.UpdatedAt);
-            cmd.Parameters.AddWithValue("IsActive", client.IsActive);
-
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        public async Task<List<ClientModel>> GetAllClientsAsync()
+        public async Task<List<ClientModel>> GetAllClientsAsync(int page = 1, int pageSize = 10)
         {
             var clients = new List<ClientModel>();
-            var query = "SELECT * FROM clients WHERE isactive = true;";
+            var offset = (page - 1) * pageSize;
 
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            await using var cmd = new NpgsqlCommand(query, conn);
-            await using var reader = await cmd.ExecuteReaderAsync();
+            var sql = @"SELECT id, name, email, isactive, created_at, updated_at
+                        FROM clients
+                        WHERE isactive = true
+                        ORDER BY created_at
+                        LIMIT @PageSize OFFSET @Offset;";
 
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@PageSize", pageSize);
+            cmd.Parameters.AddWithValue("@Offset", offset);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
                 clients.Add(new ClientModel
                 {
-                    Id = reader.GetGuid(reader.GetOrdinal("id")),
-                    Name = reader.GetString(reader.GetOrdinal("name")),
-                    Surname = reader.GetString(reader.GetOrdinal("surname")),
-                    Email = reader.GetString(reader.GetOrdinal("email")),
-                    Birthdate = reader.GetDateTime(reader.GetOrdinal("birthdate")),
-                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
-                    UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at")),
-                    IsActive = reader.GetBoolean(reader.GetOrdinal("isactive"))
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(1),
+                    Email = reader.GetString(2),
+                    IsActive = reader.GetBoolean(3),
+                    CreatedAt = reader.GetDateTime(4),
+                    UpdatedAt = reader.GetDateTime(5)
                 });
             }
+
+            _logger.LogInformation("Retornados {Count} clientes (page {Page}, size {PageSize})",
+                clients.Count, page, pageSize);
 
             return clients;
         }
 
-        public async Task<ClientModel?> GetClientByIdAsync(Guid clientId)
+        public async Task<ClientModel?> GetClientByIdAsync(Guid id)
         {
-            var query = "SELECT * FROM clients WHERE id = @Id AND isactive = true;";
-
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            await using var cmd = new NpgsqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("Id", clientId);
+            var sql = @"SELECT id, name, email, isactive, created_at, updated_at
+                        FROM clients
+                        WHERE id = @Id AND isactive = true;";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", id);
 
             await using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
                 return new ClientModel
                 {
-                    Id = reader.GetGuid(reader.GetOrdinal("id")),
-                    Name = reader.GetString(reader.GetOrdinal("name")),
-                    Surname = reader.GetString(reader.GetOrdinal("surname")),
-                    Email = reader.GetString(reader.GetOrdinal("email")),
-                    Birthdate = reader.GetDateTime(reader.GetOrdinal("birthdate")),
-                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
-                    UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at")),
-                    IsActive = reader.GetBoolean(reader.GetOrdinal("isactive"))
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(1),
+                    Email = reader.GetString(2),
+                    IsActive = reader.GetBoolean(3),
+                    CreatedAt = reader.GetDateTime(4),
+                    UpdatedAt = reader.GetDateTime(5)
                 };
             }
 
             return null;
         }
 
-        public async Task UpdateClientAsync(ClientModel client)
+        public async Task<Guid> AddClientAsync(ClientModel client)
         {
-            var query = @"
-                UPDATE clients
-                SET name = @Name,
-                    surname = @Surname,
-                    email = @Email,
-                    birthdate = @Birthdate,
-                    updated_at = @UpdatedAt
-                WHERE id = @Id;
-            ";
-
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            await using var cmd = new NpgsqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("Id", client.Id);
-            cmd.Parameters.AddWithValue("Name", client.Name);
-            cmd.Parameters.AddWithValue("Surname", client.Surname);
-            cmd.Parameters.AddWithValue("Email", client.Email);
-            cmd.Parameters.AddWithValue("Birthdate", client.Birthdate);
-            cmd.Parameters.AddWithValue("UpdatedAt", DateTime.UtcNow);
+            var sql = @"INSERT INTO clients (name, email, isactive, created_at, updated_at)
+                        VALUES (@Name, @Email, @IsActive, NOW(), NOW())
+                        RETURNING id;";
 
-            await cmd.ExecuteNonQueryAsync();
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Name", client.Name);
+            cmd.Parameters.AddWithValue("@Email", client.Email);
+            cmd.Parameters.AddWithValue("@IsActive", client.IsActive);
+
+            var id = (Guid)await cmd.ExecuteScalarAsync();
+            _logger.LogInformation("Cliente {Name} criado com Id {Id}", client.Name, id);
+
+            return id;
         }
 
-        public async Task DeleteClientAsync(Guid clientId)
+        public async Task<bool> UpdateClientAsync(ClientModel client)
         {
-            var query = "UPDATE clients SET isactive = false, updated_at = @UpdatedAt WHERE id = @Id;";
-
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            await using var cmd = new NpgsqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("Id", clientId);
-            cmd.Parameters.AddWithValue("UpdatedAt", DateTime.UtcNow);
+            var sql = @"UPDATE clients
+                        SET name = @Name, email = @Email, updated_at = NOW()
+                        WHERE id = @Id AND isactive = true;";
 
-            await cmd.ExecuteNonQueryAsync();
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", client.Id);
+            cmd.Parameters.AddWithValue("@Name", client.Name);
+            cmd.Parameters.AddWithValue("@Email", client.Email);
+
+            var rows = await cmd.ExecuteNonQueryAsync();
+            _logger.LogInformation("Cliente {Id} atualizado. Rows afetadas: {Rows}", client.Id, rows);
+
+            return rows > 0;
+        }
+
+        public async Task<bool> DeleteClientAsync(Guid id)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var sql = @"UPDATE clients
+                        SET isactive = false, updated_at = NOW()
+                        WHERE id = @Id;";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", id);
+
+            var rows = await cmd.ExecuteNonQueryAsync();
+            _logger.LogInformation("Cliente {Id} marcado como inativo. Rows afetadas: {Rows}", id, rows);
+
+            return rows > 0;
         }
     }
 }
