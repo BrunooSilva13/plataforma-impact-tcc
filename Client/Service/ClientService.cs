@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Client.Model;
 using Client.Repository;
+using Client.Interfaces; // 👈 import da interface
 
 namespace Client.Service
 {
-    public class ClientService
+    public class ClientService : IClientService
     {
         private readonly ClientRepository _repository;
 
@@ -15,7 +16,7 @@ namespace Client.Service
             _repository = repository;
         }
 
-        public async Task<List<ClientModel>> GetAllClientsAsync(int page = 1, int pageSize = 10)
+        public async Task<IEnumerable<ClientModel>> GetAllClientsAsync(int page = 1, int pageSize = 10)
         {
             return await _repository.GetAllClientsAsync(page, pageSize);
         }
