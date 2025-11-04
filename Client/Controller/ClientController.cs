@@ -3,8 +3,11 @@ using Client.Model;
 using Client.Service;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Client.Interfaces;
+
 
 namespace Client.Controllers
 {
@@ -12,10 +15,11 @@ namespace Client.Controllers
     [Route("api/[controller]")]
     public class ClientsController : ControllerBase
     {
-        private readonly ClientService _service;
+        private readonly IClientService _service;
+
         private readonly ILogger<ClientsController> _logger;
 
-        public ClientsController(ClientService service, ILogger<ClientsController> logger)
+        public ClientsController(IClientService service, ILogger<ClientsController> logger)
         {
             _service = service;
             _logger = logger;
@@ -29,7 +33,8 @@ namespace Client.Controllers
 
             var clients = await _service.GetAllClientsAsync(page, pageSize);
 
-            _logger.LogInformation("Retornados {Count} clientes", clients.Count);
+            _logger.LogInformation("Retornados {Count} clientes", clients.Count());
+
 
             return Ok(clients);
         }
