@@ -5,10 +5,11 @@ using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Client.Interfaces; 
 
 namespace Client.Repository
 {
-    public class ClientRepository
+    public class ClientRepository : IClientRepository
     {
         private readonly string _connectionString;
         private readonly ILogger<ClientRepository> _logger;
@@ -19,7 +20,7 @@ namespace Client.Repository
             _logger = logger;
         }
 
-        public async Task<List<ClientModel>> GetAllClientsAsync(int page = 1, int pageSize = 10)
+        public async Task<IEnumerable<ClientModel>> GetAllClientsAsync(int page = 1, int pageSize = 10)
         {
             var clients = new List<ClientModel>();
 
@@ -198,5 +199,6 @@ namespace Client.Repository
                 throw;
             }
         }
+
     }
 }
