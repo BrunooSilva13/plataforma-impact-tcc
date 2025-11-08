@@ -9,9 +9,9 @@ namespace Client.Service
 {
     public class ClientService : IClientService
     {
-        private readonly ClientRepository _repository;
+        private readonly IClientRepository _repository;
 
-        public ClientService(ClientRepository repository)
+        public ClientService(IClientRepository repository)
         {
             _repository = repository;
         }
